@@ -72,14 +72,14 @@ app.UseStatusCodePagesWithReExecute("/Error/{0}");
 
 SeedDatabase();
 
-//var webSocketOptions = new WebSocketOptions
-//{
-//    KeepAliveInterval = TimeSpan.FromMinutes(2)
-//};
+var webSocketOptions = new WebSocketOptions
+{
+    KeepAliveInterval = TimeSpan.FromMinutes(2)
+};
 
 app.UseHttpsRedirection();
 app.UseStaticFiles();
-//app.UseWebSockets(webSocketOptions);
+app.UseWebSockets(webSocketOptions);
 
 app.UseRouting();
 app.UseAuthentication();

@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using System.Net.WebSockets;
 using System.Text;
+using System.Text.Json.Nodes;
 
 namespace ModWebsite.Areas.Server.Controllers
 {
@@ -40,6 +41,10 @@ namespace ModWebsite.Areas.Server.Controllers
                 new ArraySegment<byte>(buffer), CancellationToken.None);
             while (!receiveResult.CloseStatus.HasValue)
             {
+                if(receiveResult.Count > 0){
+                    var e = JsonObject.Parse(buffer);
+                    Console.WriteLine(e.ToJsonString);
+                }
                 await webSocket.SendAsync(
                     new ArraySegment<byte>(buffer, 0, receiveResult.Count),
                     receiveResult.MessageType,
@@ -86,12 +91,13 @@ namespace ModWebsite.Areas.Server.Controllers
 
         String theCode = "abcdfff";
         
+        [Area("Home")]
         [Route("/ws")]
         public async Task Get()
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
-                if (HttpContext.Request.Headers.Authorization == theCode)
+                if (HttpContext.Request.Headers.Authorization == theCode || true)
                 {
                     using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
                     connections.Add(webSocket);
