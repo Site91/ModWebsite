@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Org.BouncyCastle.Asn1.Cms;
 using System.Net.WebSockets;
 using System.Text;
 using System.Text.Json.Nodes;
@@ -41,16 +42,47 @@ namespace ModWebsite.Areas.Server.Controllers
                 new ArraySegment<byte>(buffer), CancellationToken.None);
             while (!receiveResult.CloseStatus.HasValue)
             {
-                if(receiveResult.Count > 0){
-                    var e = JsonObject.Parse(buffer);
-                    Console.WriteLine(e.ToJsonString);
+                bool submit = false;
+                var returned = new JsonObject();
+                if (receiveResult.Count > 0) 
+                {
+                    var e = JsonObject.Parse(Encoding.UTF8.GetString(buffer).Substring(0, receiveResult.Count)).AsObject();
+                    Console.WriteLine(e.ToString());
+                    if(e.TryGetPropertyValue("reqtype",out JsonNode reqType) && ((string?)reqType.AsValue()) != null)
+                    {
+                        switch ((string?)reqType.AsValue())
+                        {
+                            case "getrealtime":
+                                break;
+                            default:
+                                returned.Add("status", false);
+                                returned.Add("message", "invalid reqtype");
+                                submit = true;
+                                break;
+                        }
+                    }
+                    else
+                    {
+                        returned.Add("status", false);
+                        returned.Add("message", "invalid reqtype");
+                        submit = true;
+                    }
                 }
-                await webSocket.SendAsync(
-                    new ArraySegment<byte>(buffer, 0, receiveResult.Count),
-                    receiveResult.MessageType,
-                    receiveResult.EndOfMessage,
-                    CancellationToken.None);
-
+                else
+                {
+                    returned.Add("status",false);
+                    returned.Add("message","no response");
+                    submit = true;
+                }
+                if (submit == true)
+                {
+                    buffer = Encoding.UTF8.GetBytes(returned.ToString());
+                    await webSocket.SendAsync(
+                        new ArraySegment<byte>(buffer, 0, receiveResult.Count),
+                        receiveResult.MessageType,
+                        receiveResult.EndOfMessage,
+                        CancellationToken.None);
+                }
                 receiveResult = await webSocket.ReceiveAsync(
                     new ArraySegment<byte>(buffer), CancellationToken.None);
             }
@@ -91,7 +123,7 @@ namespace ModWebsite.Areas.Server.Controllers
 
         String theCode = "abcdfff";
         
-        [Area("Home")]
+        [Area("Server")]
         [Route("/ws")]
         public async Task Get()
         {
