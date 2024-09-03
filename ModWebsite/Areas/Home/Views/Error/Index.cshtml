@@ -1,0 +1,37 @@
+﻿@model Mod.Models.ViewModels.ErrorVM
+@{
+    ViewData["Title"] = "Register";
+}
+<div class="row">
+    <div class="col-12 text-center">
+        <h1>Error Detected Ya Idiot @Model.code</h1>
+    </div>
+    @if(Model.visual.respType == 0)
+    {
+        <p class="text-center h3">
+        @foreach (var e in Model.visual.response)
+        {
+            @e
+            <br />
+        }
+        </p>
+    }
+    else if(Model.visual.respType == 1)
+    {
+        <div class="col-lg-6 offset-lg-3 col-md-8 offset-md-2 col-sm-12">
+            @foreach(var e in Model.visual.response)
+            {
+                <img class="img-fluid mx-auto my-auto" width="100%" src="@e">
+            }
+        </div>
+    }
+    else if(Model.visual.respType == 2) //custom HTML code
+    {
+        <div class="text-center">
+            @foreach (var e in Model.visual.response)
+            {
+                @Html.Raw(e);
+            }
+        </div>
+    }
+</div>
