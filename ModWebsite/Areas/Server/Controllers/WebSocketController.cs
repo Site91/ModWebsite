@@ -1,6 +1,7 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Org.BouncyCastle.Asn1.Cms;
 using System.Net.WebSockets;
+using System.Security.Cryptography.Xml;
 using System.Text;
 using System.Text.Json.Nodes;
 
@@ -53,6 +54,9 @@ namespace ModWebsite.Areas.Server.Controllers
                         switch ((string?)reqType.AsValue())
                         {
                             case "getrealtime":
+                                returned.Add("status", true);
+                                returned.Add("time", DateTime.Now.ToString());
+                                submit = true;
                                 break;
                             default:
                                 returned.Add("status", false);
@@ -76,9 +80,10 @@ namespace ModWebsite.Areas.Server.Controllers
                 }
                 if (submit == true)
                 {
-                    buffer = Encoding.UTF8.GetBytes(returned.ToString());
+                    string doneJson = returned.ToString();
+                    buffer = Encoding.UTF8.GetBytes(doneJson);
                     await webSocket.SendAsync(
-                        new ArraySegment<byte>(buffer, 0, receiveResult.Count),
+                        new ArraySegment<byte>(buffer, 0, doneJson.Length),
                         receiveResult.MessageType,
                         receiveResult.EndOfMessage,
                         CancellationToken.None);
@@ -96,16 +101,8 @@ namespace ModWebsite.Areas.Server.Controllers
         public async Task<WebSocketReceiveResult> receiveAsync(WebSocket socket, ArraySegment<byte> buffer, CancellationToken token, bool overrided)
         {
             WebSocketReceiveResult e;
-            while (true)
-            {
-                e = await socket.ReceiveAsync(buffer, token);
-                if (e.CloseStatus.HasValue)
-                    return e;
-                if (overrided || closed.Count == 0)
-                {
-                    return e;
-                }
-            }
+            e = await socket.ReceiveAsync(buffer, token);
+            return e;
         }
 
         public async Task Broadcast(string msg)
