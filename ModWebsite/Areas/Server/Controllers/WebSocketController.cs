@@ -12,6 +12,8 @@ namespace ModWebsite.Areas.Server.Controllers
         public List<WebSocket> connections = new List<WebSocket>();
         public Queue<WebSocket> closed = new Queue<WebSocket>();
 
+        public Queue<>
+
         private static async Task Echo(WebSocket webSocket)
         {
             var buffer = new byte[1024 * 4];
@@ -51,6 +53,10 @@ namespace ModWebsite.Areas.Server.Controllers
                     Console.WriteLine(e.ToString());
                     if(e.TryGetPropertyValue("reqtype",out JsonNode reqType) && ((string?)reqType.AsValue()) != null)
                     {
+                        if (e.TryGetPropertyValue("clientid", out JsonNode clientId))
+                        {
+                            returned.Add("clientid", clientId); //pass client ID back
+                        }
                         switch ((string?)reqType.AsValue())
                         {
                             case "getrealtime":
