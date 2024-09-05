@@ -12,7 +12,7 @@ namespace ModWebsite.Areas.Server.Controllers
         public List<WebSocket> connections = new List<WebSocket>();
         public Queue<WebSocket> closed = new Queue<WebSocket>();
 
-        public Queue<>
+        //public Queue<>
 
         private static async Task Echo(WebSocket webSocket)
         {

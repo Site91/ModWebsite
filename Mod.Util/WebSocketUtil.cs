@@ -8,9 +8,9 @@ namespace Mod.Util
 {
     public class WebSocketUtil
     {
-        public Task SendMessage(string serverLink)
-        {
+        //public Task SendMessage(string serverLink)
+        //{
 
-        }
+        //}
     }
 }
