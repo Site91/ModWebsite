@@ -11,7 +11,18 @@ using Mod.DataAccess.DbInitializer;
 using Microsoft.AspNetCore.Builder;
 using Mod.Util;
 
+using Microsoft.AspNetCore.Http;
+using JavaScriptEngineSwitcher.ChakraCore;
+using JavaScriptEngineSwitcher.Extensions.MsDependencyInjection;
+using React.AspNet;
+
 var builder = WebApplication.CreateBuilder(args);
+
+//print tunnel
+Console.WriteLine($"Tunnel URL: {Environment.
+            GetEnvironmentVariable("VS_TUNNEL_URL")}");
+Console.WriteLine($"API project tunnel URL: {Environment.
+    GetEnvironmentVariable("VS_TUNNEL_URL_MyWebApi")}");
 
 // Add services to the container.
 builder.Services.AddControllersWithViews().AddJsonOptions(options =>
@@ -31,6 +42,15 @@ builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 builder.Services.AddScoped<WebSocketUtil>();
 //builder.Services.AddSingleton<IEmailSender, EmailSender>();
+
+//REACT
+builder.Services.AddSingleton<IHttpContextAccessor, HttpContextAccessor>();
+builder.Services.AddReact();
+
+// Make sure a JS engine is registered, or you will get an error!
+builder.Services.AddJsEngineSwitcher(options => options.DefaultEngineName = ChakraCoreJsEngine.EngineName)
+  .AddChakraCore();
+
 builder.Services.AddMvc(); //Added to try fixes
 builder.Services.AddFeatureManagement();
 builder.Services.Configure<IdentityOptions>(options =>
@@ -68,6 +88,7 @@ if (!app.Environment.IsDevelopment())
     app.UseExceptionHandler("/Home/Error");
     // The default HSTS value is 30 days. You may want to change this for production scenarios, see https://aka.ms/aspnetcore-hsts.
     app.UseHsts();
+    app.UseHttpsRedirection();
 }
 
 app.UseStatusCodePagesWithReExecute("/Error/{0}");
@@ -79,7 +100,26 @@ var webSocketOptions = new WebSocketOptions
     KeepAliveInterval = TimeSpan.FromMinutes(2)
 };
 
-app.UseHttpsRedirection();
+//REACT
+app.UseReact(config =>
+{
+    // If you want to use server-side rendering of React components,
+    // add all the necessary JavaScript files here. This includes
+    // your components as well as all of their dependencies.
+    // See http://reactjs.net/ for more information. Example:
+    //config
+    //    .AddScript("~/js/First.jsx")
+    //    .AddScript("~/js/Second.jsx");
+
+    // If you use an external build too (for example, Babel, Webpack,
+    // Browserify or Gulp), you can improve performance by disabling
+    // ReactJS.NET's version of Babel and loading the pre-transpiled
+    // scripts. Example:
+    //config
+    //    .SetLoadBabel(false)
+    //    .AddScriptWithoutTransform("~/Scripts/bundle.server.js");
+});
+
 app.UseStaticFiles();
 app.UseWebSockets(webSocketOptions);
 
@@ -97,9 +137,9 @@ app.Run();
 
 void SeedDatabase()
 {
-    //using (var scope = app.Services.CreateScope())
-    //{
-    //    var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
-    //    dbInitializer.Initialize();
-    //}
+    using (var scope = app.Services.CreateScope())
+    {
+        var dbInitializer = scope.ServiceProvider.GetRequiredService<IDbInitializer>();
+        dbInitializer.Initialize();
+    }
 }

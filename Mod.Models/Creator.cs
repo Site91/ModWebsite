@@ -19,8 +19,7 @@ namespace Mod.Models
         [ValidateNever]
         public string Status { get; set; }
         public string? AboutMe { get; set; }
-        public bool EmailUpdate { get; set; }
-        public bool EmailModule { get; set; }
-        public bool EmailTopic { get; set; }
+        public string? MCID { get; set; }
+
     }
 }

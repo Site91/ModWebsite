@@ -1,3 +1,7 @@
+:root{
+    --clr-primary: hsl(256, 100%, 50%);
+}
+
 html {
   font-size: 14px;
 }
@@ -19,4 +23,8 @@ html {
 
 body {
   margin-bottom: 60px;
+}
+
+.primary {
+    color: var(--clr-primary);
 }

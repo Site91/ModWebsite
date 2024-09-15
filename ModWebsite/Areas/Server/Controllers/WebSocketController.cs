@@ -1,5 +1,12 @@
 ﻿using Microsoft.AspNetCore.Mvc;
+using Microsoft.EntityFrameworkCore;
+using Microsoft.Extensions.DependencyInjection;
+using Mod.DataAccess;
+using Mod.DataAccess.Repository;
+using Mod.DataAccess.Repository.IRepository;
+using ModWebsite.Areas.Home.Controllers;
 using Org.BouncyCastle.Asn1.Cms;
+using System;
 using System.Net.WebSockets;
 using System.Security.Cryptography.Xml;
 using System.Text;
@@ -9,12 +16,25 @@ namespace ModWebsite.Areas.Server.Controllers
 {
     public class WebSocketController : ControllerBase
     {
+        //libs
+        private readonly IServiceScopeFactory _service;
+        private readonly ILogger<WebSocketController> _logger;
+        private readonly IUnitOfWork _unitOfWork;
+
+        public WebSocketController(ILogger<WebSocketController> logger, IServiceScopeFactory service, IUnitOfWork unitOfWork)
+        {
+            _logger = logger;
+            _service = service;
+            _unitOfWork = unitOfWork;
+        }
+
+        //internal vars
         public List<WebSocket> connections = new List<WebSocket>();
         public Queue<WebSocket> closed = new Queue<WebSocket>();
 
         //public Queue<>
 
-        private static async Task Echo(WebSocket webSocket)
+        private async Task Echo(WebSocket webSocket)
         {
             var buffer = new byte[1024 * 4];
             var receiveResult = await webSocket.ReceiveAsync(
@@ -38,7 +58,7 @@ namespace ModWebsite.Areas.Server.Controllers
                 CancellationToken.None);
         }
 
-        private static async Task serverWebsocket(WebSocket webSocket)
+        private async Task serverWebsocket(WebSocket webSocket, IUnitOfWork unitOfWork)
         {
             var buffer = new byte[1024 * 4];
             var receiveResult = await webSocket.ReceiveAsync(
@@ -47,19 +67,24 @@ namespace ModWebsite.Areas.Server.Controllers
             {
                 bool submit = false;
                 var returned = new JsonObject();
-                if (receiveResult.Count > 0) 
+                if (receiveResult.Count > 0)
                 {
                     var e = JsonObject.Parse(Encoding.UTF8.GetString(buffer).Substring(0, receiveResult.Count)).AsObject();
                     Console.WriteLine(e.ToString());
-                    if(e.TryGetPropertyValue("reqtype",out JsonNode reqType) && ((string?)reqType.AsValue()) != null)
+                    if (e.TryGetPropertyValue("reqtype", out JsonNode reqType) && ((string?)reqType.AsValue()) != null)
                     {
-                        if (e.TryGetPropertyValue("clientid", out JsonNode clientId))
+                        returned.Add("reqtype", (string?)reqType.AsValue());
+                        if (e.TryGetPropertyValue("clientid", out JsonNode clientId) && ((int?)clientId.AsValue()) != null)
                         {
-                            returned.Add("clientid", clientId); //pass client ID back
+                            returned.Add("clientid", (int?)clientId.AsValue()); //pass client ID back, hi from science :>
                         }
                         switch ((string?)reqType.AsValue())
                         {
                             case "getrealtime":
+                                if (e.TryGetPropertyValue("uuid", out JsonNode uuid))
+                                {
+                                    returned.Add("uuid", (string?)uuid.AsValue());
+                                }
                                 returned.Add("status", true);
                                 returned.Add("time", DateTime.Now.ToString());
                                 submit = true;
@@ -80,8 +105,8 @@ namespace ModWebsite.Areas.Server.Controllers
                 }
                 else
                 {
-                    returned.Add("status",false);
-                    returned.Add("message","no response");
+                    returned.Add("status", false);
+                    returned.Add("message", "no response");
                     submit = true;
                 }
                 if (submit == true)
@@ -132,11 +157,11 @@ namespace ModWebsite.Areas.Server.Controllers
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
-                if (HttpContext.Request.Headers.Authorization == theCode || true)
+                if (HttpContext.Request.Headers.Authorization == theCode || false)
                 {
                     using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
                     connections.Add(webSocket);
-                    await serverWebsocket(webSocket);
+                    await serverWebsocket(webSocket, _unitOfWork);
                 }
                 else
                 {

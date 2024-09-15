@@ -1,0 +1,10 @@
+version: '3.4'
+
+services:
+  modwebsite:
+    image: ${DOCKER_REGISTRY-}modwebsite
+    ports:
+    - "8081:8080"
+    build:
+      context: .
+      dockerfile: ModWebsite/Dockerfile

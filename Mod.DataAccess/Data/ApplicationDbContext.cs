@@ -1,5 +1,6 @@
 ﻿using Microsoft.AspNetCore.Identity.EntityFrameworkCore;
 using Microsoft.EntityFrameworkCore;
+using Mod.Models;
 
 namespace Mod.DataAccess
 {
@@ -9,7 +10,7 @@ namespace Mod.DataAccess
         {
 
         }
-        //public DbSet<Creator> ApplicationUsers { get; set; }
+        public DbSet<Creator> ApplicationUsers { get; set; }
 
     }
 }
