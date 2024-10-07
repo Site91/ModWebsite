@@ -34,6 +34,9 @@ namespace Mod.DataAccess.DbInitializer
                 {
                     _db.Database.Migrate();
                 }
+                //Create folder
+                string dir = new DirectoryInfo(Environment.CurrentDirectory).Parent.Parent.FullName;
+                Directory.CreateDirectory(dir + "/ServerInfo");
             }
             catch (Exception ex)
             {
