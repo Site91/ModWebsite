@@ -1,4 +1,5 @@
-﻿using Microsoft.AspNetCore.Identity;
+﻿using Microsoft.AspNetCore.Hosting;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.Extensions.Logging;
 using System;
@@ -15,15 +16,17 @@ namespace Mod.DataAccess.DbInitializer
         private readonly UserManager<IdentityUser> _userManager;
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly ApplicationDbContext _db;
+        private readonly IHostingEnvironment _hostEnvironment;
 
         public DbInitializer(
             UserManager<IdentityUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            ApplicationDbContext db)
+            ApplicationDbContext db, IHostingEnvironment hostingEnvironment)
         {
             _roleManager = roleManager;
             _userManager = userManager;
             _db = db;
+            _hostEnvironment = hostingEnvironment;
         }
         public void Initialize()
         {
@@ -35,8 +38,9 @@ namespace Mod.DataAccess.DbInitializer
                     _db.Database.Migrate();
                 }
                 //Create folder
-                string dir = new DirectoryInfo(Environment.CurrentDirectory).Parent.Parent.FullName;
-                Directory.CreateDirectory(dir + "/ServerInfo");
+                string dir = new DirectoryInfo(_hostEnvironment.WebRootPath).Parent.FullName;
+                if(!Directory.Exists(dir + "/ServerInfo"))
+                    Directory.CreateDirectory(dir + "/ServerInfo");
             }
             catch (Exception ex)
             {

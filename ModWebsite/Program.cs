@@ -41,6 +41,7 @@ builder.Services.AddScoped<IdentityDbContext, ApplicationDbContext>(); //Added t
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IDbInitializer, DbInitializer>();
 builder.Services.AddScoped<WebSocketUtil>();
+builder.Services.AddScoped<JSONSaver>();
 //builder.Services.AddSingleton<IEmailSender, EmailSender>();
 
 //REACT

@@ -5,12 +5,19 @@ using System.Runtime.InteropServices.JavaScript;
 using System.Text;
 using System.Text.Json.Serialization;
 using System.Threading.Tasks;
+using Microsoft.Extensions.Hosting;
 using Newtonsoft.Json;
 
 namespace Mod.Util
 {
     public class JSONSaver
     {
+        IHostEnvironment _hostEnvironment;
+        public JSONSaver(IHostEnvironment hostEnvironment)
+        {
+            _hostEnvironment = hostEnvironment;
+        }
+
         static string dir = new DirectoryInfo(Environment.CurrentDirectory).Parent.Parent.FullName + "/ServerInfo/";
         public void Save(string path, JSObject obj)
         {
