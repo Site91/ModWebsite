@@ -11,6 +11,7 @@ namespace Mod.DataAccess
 
         }
         public DbSet<Creator> ApplicationUsers { get; set; }
+        public DbSet<AuthorizedSites> AuthorizedSites { get; set; }
 
     }
 }

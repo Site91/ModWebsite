@@ -13,6 +13,7 @@ namespace Mod.DataAccess.Repository.IRepository
         //IProductRepository Product { get; }
         //ICompanyRepository Company { get; }
         ICreatorRepository User { get; }
+        IAuthorizedSitesRepository AuthorizedSites { get; }
 
         void Save();
     }

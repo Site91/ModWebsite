@@ -4,8 +4,10 @@ using Microsoft.Extensions.DependencyInjection;
 using Mod.DataAccess;
 using Mod.DataAccess.Repository;
 using Mod.DataAccess.Repository.IRepository;
+using Mod.Models.ViewModels.Sockets;
 using ModWebsite.Areas.Home.Controllers;
 using Org.BouncyCastle.Asn1.Cms;
+using SixLabors.ImageSharp.Memory;
 using System;
 using System.Net.WebSockets;
 using System.Security.Cryptography.Xml;
@@ -21,6 +23,8 @@ namespace ModWebsite.Areas.Server.Controllers
         private readonly ILogger<WebSocketController> _logger;
         private readonly IUnitOfWork _unitOfWork;
 
+        private int nextId = 0;
+
         public WebSocketController(ILogger<WebSocketController> logger, IServiceScopeFactory service, IUnitOfWork unitOfWork)
         {
             _logger = logger;
@@ -29,7 +33,7 @@ namespace ModWebsite.Areas.Server.Controllers
         }
 
         //internal vars
-        public List<WebSocket> connections = new List<WebSocket>();
+        public List<SocketHolder> connections = new List<SocketHolder>();
         public Queue<WebSocket> closed = new Queue<WebSocket>();
 
         //public Queue<>
@@ -58,10 +62,10 @@ namespace ModWebsite.Areas.Server.Controllers
                 CancellationToken.None);
         }
 
-        private async Task serverWebsocket(WebSocket webSocket, IUnitOfWork unitOfWork)
+        private async Task serverWebsocket(SocketHolder webSocket, IUnitOfWork unitOfWork)
         {
             var buffer = new byte[1024 * 4];
-            var receiveResult = await webSocket.ReceiveAsync(
+            var receiveResult = await webSocket.socket.ReceiveAsync(
                 new ArraySegment<byte>(buffer), CancellationToken.None);
             while (!receiveResult.CloseStatus.HasValue)
             {
@@ -113,20 +117,21 @@ namespace ModWebsite.Areas.Server.Controllers
                 {
                     string doneJson = returned.ToString();
                     buffer = Encoding.UTF8.GetBytes(doneJson);
-                    await webSocket.SendAsync(
+                    await webSocket.socket.SendAsync(
                         new ArraySegment<byte>(buffer, 0, doneJson.Length),
                         receiveResult.MessageType,
                         receiveResult.EndOfMessage,
                         CancellationToken.None);
                 }
-                receiveResult = await webSocket.ReceiveAsync(
+                receiveResult = await webSocket.socket.ReceiveAsync(
                     new ArraySegment<byte>(buffer), CancellationToken.None);
             }
 
-            await webSocket.CloseAsync(
+            await webSocket.socket.CloseAsync(
                 receiveResult.CloseStatus.Value,
                 receiveResult.CloseStatusDescription,
                 CancellationToken.None);
+            connections.Remove(webSocket);
         }
 
         public async Task<WebSocketReceiveResult> receiveAsync(WebSocket socket, ArraySegment<byte> buffer, CancellationToken token, bool overrided)
@@ -136,21 +141,48 @@ namespace ModWebsite.Areas.Server.Controllers
             return e;
         }
 
+        public async Task Send(string site)
+        {
+            var socket = connections.FirstOrDefault(u=>u.key == site);
+            if(socket != null)
+            {
+                //Make request holder
+                var request = new heldRequest();
+                request.requestID = nextId;
+                nextId++;
+                request.siteKey = socket.key;
+
+                var buffer = new byte[1024 * 4];
+                string doneJson = returned.ToString();
+                buffer = Encoding.UTF8.GetBytes(doneJson);
+                await socket.socket.SendAsync(
+                    new ArraySegment<byte>(buffer, 0, doneJson.Length),
+                    WebSocketMessageType.Text,
+                    true,
+                    CancellationToken.None);
+
+                while (!request.finished)
+                {
+                    await Task.Delay(25);
+                }
+            }
+        }
+
         public async Task Broadcast(string msg)
         {
             var bytes = Encoding.UTF8.GetBytes(msg);
             foreach (var socket in connections)
             {
-                if(socket.State == WebSocketState.Open)
+                if (socket.socket.State == WebSocketState.Open)
                 {
                     var arraySegment = new ArraySegment<byte>(bytes, 0, bytes.Length);
-                    await socket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
+                    await socket.socket.SendAsync(arraySegment, WebSocketMessageType.Text, true, CancellationToken.None);
                 }
             }
         }
 
         String theCode = "abcdfff";
-        
+
         [Area("Server")]
         [Route("/ws")]
         public async Task Get()
@@ -160,8 +192,9 @@ namespace ModWebsite.Areas.Server.Controllers
                 if (HttpContext.Request.Headers.Authorization == theCode || false)
                 {
                     using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                    connections.Add(webSocket);
-                    await serverWebsocket(webSocket, _unitOfWork);
+                    var heldSocket = new SocketHolder(webSocket, HttpContext.Request.Headers.Authorization.ToString());
+                    connections.Add(heldSocket);
+                    await serverWebsocket(heldSocket, _unitOfWork);
                 }
                 else
                 {
@@ -175,5 +208,10 @@ namespace ModWebsite.Areas.Server.Controllers
             }
         }
     }
-
+    public class heldRequest()
+    {
+        public bool finished = false;
+        public int requestID;
+        public string siteKey;
+    }
 }
