@@ -1,6 +1,8 @@
 ﻿using Microsoft.AspNetCore.Mvc;
 using Mod.DataAccess.Repository.IRepository;
 using Mod.Models;
+using ModWebsite.Areas.Server.Controllers;
+using System.Text.Json.Nodes;
 
 namespace ModWebsite.Areas.Site.Controllers
 {
@@ -28,7 +30,9 @@ namespace ModWebsite.Areas.Site.Controllers
         {
             if(SiteExists(site, out AuthorizedSites siteData))
             {
-                
+                JsonObject json = new JsonObject();
+                json.Add("reqtype", "playerlist");
+                WebSocketController
             }
             return BadRequest();
         }

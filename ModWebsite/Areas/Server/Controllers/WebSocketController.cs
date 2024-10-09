@@ -6,9 +6,11 @@ using Mod.DataAccess.Repository;
 using Mod.DataAccess.Repository.IRepository;
 using Mod.Models.ViewModels.Sockets;
 using ModWebsite.Areas.Home.Controllers;
+using Newtonsoft.Json;
 using Org.BouncyCastle.Asn1.Cms;
 using SixLabors.ImageSharp.Memory;
 using System;
+using System.Net;
 using System.Net.WebSockets;
 using System.Security.Cryptography.Xml;
 using System.Text;
@@ -34,7 +36,8 @@ namespace ModWebsite.Areas.Server.Controllers
 
         //internal vars
         public List<SocketHolder> connections = new List<SocketHolder>();
-        public Queue<WebSocket> closed = new Queue<WebSocket>();
+        public List<heldRequest> requests = new List<heldRequest>();
+        //public Queue<WebSocket> closed = new Queue<WebSocket>();
 
         //public Queue<>
 
@@ -75,7 +78,22 @@ namespace ModWebsite.Areas.Server.Controllers
                 {
                     var e = JsonObject.Parse(Encoding.UTF8.GetString(buffer).Substring(0, receiveResult.Count)).AsObject();
                     Console.WriteLine(e.ToString());
-                    if (e.TryGetPropertyValue("reqtype", out JsonNode reqType) && ((string?)reqType.AsValue()) != null)
+                    if (e.TryGetPropertyValue("serverid", out JsonNode serverId))
+                    {
+                        //Search connections
+                        var connection = requests.FirstOrDefault(u=>u.siteKey == webSocket.key && u.requestID == ((int?)serverId.AsValue()) && !u.finished);
+                        if (connection != null)
+                        {
+                            connection.json = e;
+                            connection.worked = true;
+                            connection.finished = true;
+                        }
+                        else
+                        {
+                            //drop the request.
+                        }
+                    }
+                    else if (e.TryGetPropertyValue("reqtype", out JsonNode reqType) && ((string?)reqType.AsValue()) != null)
                     {
                         returned.Add("reqtype", (string?)reqType.AsValue());
                         if (e.TryGetPropertyValue("clientid", out JsonNode clientId) && ((int?)clientId.AsValue()) != null)
@@ -131,6 +149,12 @@ namespace ModWebsite.Areas.Server.Controllers
                 receiveResult.CloseStatus.Value,
                 receiveResult.CloseStatusDescription,
                 CancellationToken.None);
+            requests.ForEach(request => {
+                if (request.siteKey == webSocket.key)
+                {
+                    request.finished = true;
+                }
+            });
             connections.Remove(webSocket);
         }
 
@@ -141,7 +165,7 @@ namespace ModWebsite.Areas.Server.Controllers
             return e;
         }
 
-        public async Task Send(string site)
+        public async Task<JsonObject> Send(string site, JsonObject json)
         {
             var socket = connections.FirstOrDefault(u=>u.key == site);
             if(socket != null)
@@ -151,21 +175,55 @@ namespace ModWebsite.Areas.Server.Controllers
                 request.requestID = nextId;
                 nextId++;
                 request.siteKey = socket.key;
+                //Put data into json
+                json.Add("serverid", request.requestID);
+                //Put request into list
+                requests.Add(request);
 
                 var buffer = new byte[1024 * 4];
-                string doneJson = returned.ToString();
+                string doneJson = json.ToString();
                 buffer = Encoding.UTF8.GetBytes(doneJson);
                 await socket.socket.SendAsync(
                     new ArraySegment<byte>(buffer, 0, doneJson.Length),
                     WebSocketMessageType.Text,
                     true,
                     CancellationToken.None);
-
-                while (!request.finished)
+                int timer = 15 * 1000; //in seconds
+                while (!request.finished || timer <= 0)
                 {
                     await Task.Delay(25);
+                    timer -= 25;
+                }
+                requests.Remove(request);
+                if (request.worked)
+                {
+                    request.json.Add("socketWorked", true);
+                    return request.json;
                 }
             }
+            json.Add("socketWorked", false); //return original json
+            return json;
+        }
+
+        [HttpPost]
+        public async Task<IActionResult> SocketRequest(string siteKey)
+        {
+            Stream req = Request.Body;
+            req.Seek(0, System.IO.SeekOrigin.Begin);
+            string jsonS = new StreamReader(req).ReadToEnd();
+            JsonObject json;
+            try
+            {
+                json = JsonObject.Parse(jsonS).AsObject();
+            }
+            catch 
+            {
+                return BadRequest();
+            }
+            if (json == null)
+                return BadRequest();
+            var e = await Send(siteKey, json);
+            return Ok(json);
         }
 
         public async Task Broadcast(string msg)
@@ -211,7 +269,9 @@ namespace ModWebsite.Areas.Server.Controllers
     public class heldRequest()
     {
         public bool finished = false;
+        public bool worked = false;
         public int requestID;
         public string siteKey;
+        public JsonObject json;
     }
 }
