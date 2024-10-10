@@ -40,7 +40,7 @@ builder.Services.AddIdentity<IdentityUser, IdentityRole>(options => options.Sign
 builder.Services.AddScoped<IdentityDbContext, ApplicationDbContext>(); //Added to try fix issues
 builder.Services.AddScoped<IUnitOfWork, UnitOfWork>();
 builder.Services.AddScoped<IDbInitializer, DbInitializer>();
-builder.Services.AddScoped<WebSocketUtil>();
+builder.Services.AddSingleton<WebSocketUtil>();
 builder.Services.AddScoped<JSONSaver>();
 //builder.Services.AddSingleton<IEmailSender, EmailSender>();
 

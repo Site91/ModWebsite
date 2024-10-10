@@ -14,4 +14,9 @@
     <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
   </ItemGroup>
 
+    <ItemGroup>
+        <ProjectReference Include="..\Mod.Models\Mod.Models.csproj" />
+        <ProjectReference Include="..\Mod.DataAccess\Mod.DataAccess.csproj" />
+    </ItemGroup>
+
 </Project>
