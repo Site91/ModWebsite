@@ -64,11 +64,11 @@ namespace ModWebsite.Areas.Server.Controllers
         {
             if (HttpContext.WebSockets.IsWebSocketRequest)
             {
-                if (HttpContext.Request.Headers.Authorization == theCode || false)
+                var site = _unitOfWork.AuthorizedSites.GetFirstOrDefault(u => u.AccessCode == HttpContext.Request.Headers.Authorization.ToString());
+                if (site != null) //site authorized
                 {
                     using var webSocket = await HttpContext.WebSockets.AcceptWebSocketAsync();
-                    var heldSocket = new SocketHolder(webSocket, HttpContext.Request.Headers.Authorization.ToString());
-                    _websocket.connections.Add(heldSocket);
+                    var heldSocket = new SocketHolder(webSocket, HttpContext.Request.Headers.Authorization.ToString(), site.AccessURL);
                     await _websocket.serverWebsocket(heldSocket);
                 }
                 else

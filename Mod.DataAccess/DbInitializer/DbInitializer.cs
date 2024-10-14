@@ -17,16 +17,18 @@ namespace Mod.DataAccess.DbInitializer
         private readonly RoleManager<IdentityRole> _roleManager;
         private readonly ApplicationDbContext _db;
         private readonly IHostingEnvironment _hostEnvironment;
+        private readonly ILogger<DbInitializer> _logger;
 
         public DbInitializer(
             UserManager<IdentityUser> userManager,
             RoleManager<IdentityRole> roleManager,
-            ApplicationDbContext db, IHostingEnvironment hostingEnvironment)
+            ApplicationDbContext db, IHostingEnvironment hostingEnvironment, ILogger<DbInitializer> logger)
         {
             _roleManager = roleManager;
             _userManager = userManager;
             _db = db;
             _hostEnvironment = hostingEnvironment;
+            _logger = logger;
         }
         public void Initialize()
         {
@@ -39,8 +41,9 @@ namespace Mod.DataAccess.DbInitializer
                 }
                 //Create folder
                 string dir = new DirectoryInfo(_hostEnvironment.WebRootPath).Parent.FullName;
-                if(!Directory.Exists(dir + "/ServerInfo"))
+                if(!Directory.Exists(dir + "/ServerInfo")) //This folder does exist in "ModWebsite" directory, but is not shown in solution explorer
                     Directory.CreateDirectory(dir + "/ServerInfo");
+
             }
             catch (Exception ex)
             {

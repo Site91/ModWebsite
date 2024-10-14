@@ -33,6 +33,9 @@
             "ASPNETCORE_HTTPS_PORTS": "9051",
             "ASPNETCORE_HTTP_PORTS": "9050"
         },
+        "ports": [
+            "1433:1433/tcp"
+        ],
       "httpPort": 50080,
       "sslPort": 50443,
       "publishAllPorts": true,

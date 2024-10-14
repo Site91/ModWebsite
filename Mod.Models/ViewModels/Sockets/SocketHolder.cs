@@ -10,11 +10,13 @@ namespace Mod.Models.ViewModels.Sockets
     public class SocketHolder
     {
         public string key;
+        public string url;
         public WebSocket socket { get; set; }
-        public SocketHolder(WebSocket socket, string key)
+        public SocketHolder(WebSocket socket, string key, string url)
         {
             this.socket = socket;
             this.key = key;
+            this.url = url;
         }
     }
 }

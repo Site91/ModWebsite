@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.DependencyInjection;
+using Microsoft.Extensions.Logging;
 using Mod.DataAccess.DbInitializer;
 using Mod.DataAccess.Repository.IRepository;
 using Mod.Models.ViewModels.Sockets;
@@ -17,8 +18,8 @@ namespace Mod.Util
     {
         private readonly IServiceProvider _serviceProvider;
 
-        public List<SocketHolder> connections = new List<SocketHolder>();
-        public List<heldRequest> requests = new List<heldRequest>();
+        public static List<SocketHolder> connections = new List<SocketHolder>();
+        public static List<heldRequest> requests = new List<heldRequest>();
         //public Queue<WebSocket> closed = new Queue<WebSocket>();
 
         public WebSocketUtil(IServiceProvider socketFactory)
@@ -32,96 +33,102 @@ namespace Mod.Util
         private int nextId = 0;
         public async Task serverWebsocket(SocketHolder webSocket)
         {
-            var _unitOfWork = _serviceProvider.GetRequiredService<IUnitOfWork>();
-            var buffer = new byte[1024 * 4];
-            var receiveResult = await webSocket.socket.ReceiveAsync(
-                new ArraySegment<byte>(buffer), CancellationToken.None);
-            while (!receiveResult.CloseStatus.HasValue)
+            connections.Add(webSocket);
+            using (var scope = _serviceProvider.CreateScope())
             {
-                bool submit = false;
-                var returned = new JsonObject();
-                if (receiveResult.Count > 0)
+                var _unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
+                var _logger = scope.ServiceProvider.GetRequiredService<ILogger<WebSocketUtil>>();
+                _logger.LogInformation("Starting up websocket connection with key " + webSocket.key);
+                var buffer = new byte[1024 * 4];
+                var receiveResult = await webSocket.socket.ReceiveAsync(
+                    new ArraySegment<byte>(buffer), CancellationToken.None);
+                while (!receiveResult.CloseStatus.HasValue)
                 {
-                    var e = JsonObject.Parse(Encoding.UTF8.GetString(buffer).Substring(0, receiveResult.Count)).AsObject();
-                    Console.WriteLine(e.ToString());
-                    if (e.TryGetPropertyValue("serverid", out JsonNode serverId))
+                    bool submit = false;
+                    var returned = new JsonObject();
+                    if (receiveResult.Count > 0)
                     {
-                        //Search connections
-                        var connection = requests.FirstOrDefault(u => u.siteKey == webSocket.key && u.requestID == ((int?)serverId.AsValue()) && !u.finished);
-                        if (connection != null)
+                        var e = JsonObject.Parse(Encoding.UTF8.GetString(buffer).Substring(0, receiveResult.Count)).AsObject();
+                        Console.WriteLine(e.ToString());
+                        if (e.TryGetPropertyValue("serverid", out JsonNode serverId))
                         {
-                            connection.json = e;
-                            connection.worked = true;
-                            connection.finished = true;
+                            //Search connections
+                            var connection = requests.FirstOrDefault(u => u.siteKey == webSocket.key && u.requestID == ((int?)serverId.AsValue()) && !u.finished);
+                            if (connection != null)
+                            {
+                                connection.json = e;
+                                connection.worked = true;
+                                connection.finished = true;
+                            }
+                            else
+                            {
+                                //drop the request.
+                            }
+                        }
+                        else if (e.TryGetPropertyValue("reqtype", out JsonNode reqType) && ((string?)reqType.AsValue()) != null)
+                        {
+                            returned.Add("reqtype", (string?)reqType.AsValue());
+                            if (e.TryGetPropertyValue("clientid", out JsonNode clientId) && ((int?)clientId.AsValue()) != null)
+                            {
+                                returned.Add("clientid", (int?)clientId.AsValue()); //pass client ID back, hi from science :>
+                            }
+                            switch ((string?)reqType.AsValue())
+                            {
+                                case "getrealtime":
+                                    if (e.TryGetPropertyValue("uuid", out JsonNode uuid))
+                                    {
+                                        returned.Add("uuid", (string?)uuid.AsValue());
+                                    }
+                                    returned.Add("status", true);
+                                    returned.Add("time", DateTime.Now.ToString());
+                                    submit = true;
+                                    break;
+                                default:
+                                    returned.Add("status", false);
+                                    returned.Add("message", "invalid reqtype");
+                                    submit = true;
+                                    break;
+                            }
                         }
                         else
                         {
-                            //drop the request.
-                        }
-                    }
-                    else if (e.TryGetPropertyValue("reqtype", out JsonNode reqType) && ((string?)reqType.AsValue()) != null)
-                    {
-                        returned.Add("reqtype", (string?)reqType.AsValue());
-                        if (e.TryGetPropertyValue("clientid", out JsonNode clientId) && ((int?)clientId.AsValue()) != null)
-                        {
-                            returned.Add("clientid", (int?)clientId.AsValue()); //pass client ID back, hi from science :>
-                        }
-                        switch ((string?)reqType.AsValue())
-                        {
-                            case "getrealtime":
-                                if (e.TryGetPropertyValue("uuid", out JsonNode uuid))
-                                {
-                                    returned.Add("uuid", (string?)uuid.AsValue());
-                                }
-                                returned.Add("status", true);
-                                returned.Add("time", DateTime.Now.ToString());
-                                submit = true;
-                                break;
-                            default:
-                                returned.Add("status", false);
-                                returned.Add("message", "invalid reqtype");
-                                submit = true;
-                                break;
+                            returned.Add("status", false);
+                            returned.Add("message", "invalid reqtype");
+                            submit = true;
                         }
                     }
                     else
                     {
                         returned.Add("status", false);
-                        returned.Add("message", "invalid reqtype");
+                        returned.Add("message", "no response");
                         submit = true;
                     }
+                    if (submit == true)
+                    {
+                        string doneJson = returned.ToString();
+                        buffer = Encoding.UTF8.GetBytes(doneJson);
+                        await webSocket.socket.SendAsync(
+                            new ArraySegment<byte>(buffer, 0, doneJson.Length),
+                            receiveResult.MessageType,
+                            receiveResult.EndOfMessage,
+                            CancellationToken.None);
+                    }
+                    receiveResult = await webSocket.socket.ReceiveAsync(
+                        new ArraySegment<byte>(buffer), CancellationToken.None);
                 }
-                else
-                {
-                    returned.Add("status", false);
-                    returned.Add("message", "no response");
-                    submit = true;
-                }
-                if (submit == true)
-                {
-                    string doneJson = returned.ToString();
-                    buffer = Encoding.UTF8.GetBytes(doneJson);
-                    await webSocket.socket.SendAsync(
-                        new ArraySegment<byte>(buffer, 0, doneJson.Length),
-                        receiveResult.MessageType,
-                        receiveResult.EndOfMessage,
-                        CancellationToken.None);
-                }
-                receiveResult = await webSocket.socket.ReceiveAsync(
-                    new ArraySegment<byte>(buffer), CancellationToken.None);
+                _logger.LogWarning("Closing connection with " + webSocket.key);
+                await webSocket.socket.CloseAsync(
+                    receiveResult.CloseStatus.Value,
+                    receiveResult.CloseStatusDescription,
+                    CancellationToken.None);
+                requests.ForEach(request => {
+                    if (request.siteKey == webSocket.key)
+                    {
+                        request.finished = true;
+                    }
+                });
+                connections.Remove(webSocket);
             }
-
-            await webSocket.socket.CloseAsync(
-                receiveResult.CloseStatus.Value,
-                receiveResult.CloseStatusDescription,
-                CancellationToken.None);
-            requests.ForEach(request => {
-                if (request.siteKey == webSocket.key)
-                {
-                    request.finished = true;
-                }
-            });
-            connections.Remove(webSocket);
         }
 
         public async Task<WebSocketReceiveResult> receiveAsync(WebSocket socket, ArraySegment<byte> buffer, CancellationToken token, bool overrided)
@@ -146,7 +153,7 @@ namespace Mod.Util
 
         public async Task<JsonObject> Send(string site, JsonObject json, bool getBack = true)
         {
-            var socket = connections.FirstOrDefault(u => u.key == site);
+            var socket = connections.FirstOrDefault(u => u.url == site);
             if (socket != null)
             {
                 //Make request holder
