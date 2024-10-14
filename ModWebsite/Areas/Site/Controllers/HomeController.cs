@@ -6,6 +6,7 @@ using Mod.Models;
 using Mod.Models.ViewModels.Sites;
 using Mod.Util;
 using ModWebsite.Areas.Server.Controllers;
+using Newtonsoft.Json;
 using NuGet.Protocol;
 using System.Text.Json.Nodes;
 
@@ -37,7 +38,7 @@ namespace ModWebsite.Areas.Site.Controllers
                 var obj = new SiteIndexVM()
                 {
                     SiteData = siteData,
-                    SiteObj = _jsonSaver.Load(siteData.Directory)
+                    SiteObj = GetData<GeneralJsonVM>(site, "general")
                 };
                 if (obj.SiteObj != null) //file exists
                 {
@@ -103,55 +104,64 @@ namespace ModWebsite.Areas.Site.Controllers
             siteData = unitOfWork.AuthorizedSites.GetFirstOrDefault(u => u.AccessURL == site);
             return siteData != null;
         }
-        private JsonObject GetData(string site) //get from memory or from file
+        private T GetData<T>(string site, string file) //get from memory or from file
         {
             if (SiteExists(site, out AuthorizedSites siteData, _unitOfWork))
             {
                 //Attempt to get from memory
-                var inCache = _memoryCache.TryGetValue($"SiteData{siteData.Directory}", out JsonObject obj);
-                if (inCache)
+                var inCache = _memoryCache.TryGetValue($"SiteData{siteData.Directory}/{file}", out T obj);
+                if (inCache && obj != null)
                 {
                     return obj;
                 }
                 else
                 {
-                    obj = _jsonSaver.Load(siteData.Directory);
+                    var jsonStr = _jsonSaver.Load($"{siteData.Directory}/{file}.json");
+                    if (jsonStr == null)
+                        return default(T);
+                    obj = JsonConvert.DeserializeObject<T>(jsonStr.ToString());
                     if (obj != null) //got the object
                     {
                         var cacheEntryOptions = new MemoryCacheEntryOptions()
                             .SetSlidingExpiration(TimeSpan.FromHours(3))
-                            .RegisterPostEvictionCallback(SiteEvictionCallback, site);
+                            .RegisterPostEvictionCallback(SiteEvictionCallback, site + "`" + file);
 
-                        _memoryCache.Set($"SiteData{siteData.Directory}", obj, cacheEntryOptions);
+                        _memoryCache.Set($"SiteData{siteData.Directory}/{file}", obj, cacheEntryOptions);
+                        return obj;
                     }
                 }
             }
-            return null;
+            return default(T);
         }
-        private void CheckFileVer(AuthorizedSites site, JsonObject obj, JSONSaver jsonSaver)
+        private void CheckFileVer(AuthorizedSites site, object obj, JSONSaver jsonSaver, string file)
         {
+            var realObj = (BaseSiteVM)obj;
             var diskObj = jsonSaver.Load(site.Directory);
             if (diskObj != null)
             {
-                if ((int)diskObj.First(u => u.Key == "updateID").Value.AsValue() != (int)obj.First(u => u.Key == "updateID").Value.AsValue()) //difference in version
+                if ((int)diskObj.First(u => u.Key == "updateID").Value.AsValue() != realObj.updateId) //difference in version
                 {
-                    jsonSaver.Save(site.Directory, obj);
+                    jsonSaver.Save($"{site.Directory}/{file}.json", JsonObject.Parse(obj.ToJson()).AsObject());
                 }
             }
         }
 
         /* Site JSON Object
-         * (MAIN STUFF [base 
+         * (MAIN STUFF [base variables] IN ALL OF THE FILES)
          * revision = int. Checks if an update is needed to the JSON.
          * updateID = current version of the file. If different from one in memory, overwrite the disk file.
+         * (GENERAL.json)
+         * Name : Name of the site.
          * 
          */
 
         private void SiteEvictionCallback(object cacheKey, object cacheValue, EvictionReason evictionReason, object state)
         {
             var site = (string)state;
-            var obj = (JsonObject)cacheValue;
+            var obj = cacheValue;
             var key = (string)cacheKey;
+            var file = site.Split('`')[1];
+            site = site.Split('`')[0];
             using (var scope = _serviceScopeFactory.CreateScope())
             {
                 var jsonSaver = scope.ServiceProvider.GetRequiredService<JSONSaver>();
@@ -159,7 +169,7 @@ namespace ModWebsite.Areas.Site.Controllers
                 var unitOfWork = scope.ServiceProvider.GetRequiredService<IUnitOfWork>();
                 if (SiteExists(site, out AuthorizedSites siteData, _unitOfWork))
                 {
-                    CheckFileVer(siteData, obj, jsonSaver);
+                    CheckFileVer(siteData, obj, jsonSaver, "");
                 }
             }
         }

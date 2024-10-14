@@ -3,5 +3,13 @@
     ViewData["Title"] = "Home Page";
 }
 
-
+@if(Model.HTMLPath != null)
+{
+    
+}
+else
+{
+    <h3>@Model.SiteObj.Name</h3>
+    <p>@Model.SiteObj.ShortDescription</p>
+}
 

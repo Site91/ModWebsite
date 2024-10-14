@@ -19,7 +19,7 @@ namespace Mod.Util
         public JSONSaver(IWebHostEnvironment hostEnvironment)
         {
             _hostEnvironment = hostEnvironment;
-            dir = new DirectoryInfo(_hostEnvironment.WebRootPath).Parent.FullName;
+            dir = new DirectoryInfo(_hostEnvironment.WebRootPath).Parent.FullName + "/ServerInfo";
         }
 
         public void Save(string path, JsonObject obj)
@@ -28,10 +28,12 @@ namespace Mod.Util
         }
         public JsonObject Load(string path)
         {
+            if (!File.Exists($"{dir}/{path}"))
+                return null;
             string text = File.ReadAllText($"{dir}/{path}");
             if (text != null)
             {
-                var obj = JsonConvert.DeserializeObject<JsonObject>(text);
+                var obj = JsonObject.Parse(text).AsObject();
                 return obj;
             }
             return null;
