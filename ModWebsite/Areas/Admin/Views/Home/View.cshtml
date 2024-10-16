@@ -1,0 +1,48 @@
+﻿@model Mod.Models.AuthorizedSites
+
+@{
+    ViewData["Title"] = "View";
+}
+
+<h1>View</h1>
+
+<h4>AuthorizedSites</h4>
+<hr />
+<div class="row">
+    <div class="col-md-4">
+        <form asp-action="View">
+            <div asp-validation-summary="ModelOnly" class="text-danger"></div>
+            <div class="form-group">
+                <label asp-for="AccessCode" class="control-label"></label>
+                <input asp-for="AccessCode" class="form-control" />
+                <span asp-validation-for="AccessCode" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Directory" class="control-label"></label>
+                <input asp-for="Directory" class="form-control" />
+                <span asp-validation-for="Directory" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="Name" class="control-label"></label>
+                <input asp-for="Name" class="form-control" />
+                <span asp-validation-for="Name" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <label asp-for="AccessURL" class="control-label"></label>
+                <input asp-for="AccessURL" class="form-control" />
+                <span asp-validation-for="AccessURL" class="text-danger"></span>
+            </div>
+            <div class="form-group">
+                <input type="submit" value="Create" class="btn btn-primary" />
+            </div>
+        </form>
+    </div>
+</div>
+
+<div>
+    <a asp-action="Index">Back to List</a>
+</div>
+
+@section Scripts {
+    @{await Html.RenderPartialAsync("_ValidationScriptsPartial");}
+}
