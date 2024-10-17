@@ -1,4 +1,5 @@
 ﻿using Microsoft.AspNetCore.Authorization;
+using Microsoft.AspNetCore.Identity;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.Extensions.Caching.Memory;
 using Mod.DataAccess.Repository.IRepository;
@@ -172,6 +173,11 @@ namespace ModWebsite.Areas.Site.Controllers
                     CheckFileVer(siteData, obj, jsonSaver, "");
                 }
             }
+        }
+
+        private bool IsAuthorized(int site, string user, string perm)
+        {
+            return _unitOfWork.UserSiteRole.IsAuthorized(user, site, perm);
         }
             #endregion
     }

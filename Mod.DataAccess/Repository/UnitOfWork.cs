@@ -17,9 +17,14 @@ namespace Mod.DataAccess.Repository
             _db = db;
             User = new CreatorRepository(_db);
             AuthorizedSites = new AuthorizedSitesRepository(_db);
+            SiteRoles = new SiteRolesRepository(_db);
+            UserSiteRole = new UserSiteRoleRepository(_db);
+            
         }
         public ICreatorRepository User { get; private set; }
         public IAuthorizedSitesRepository AuthorizedSites { get; private set; }
+        public ISiteRolesRepository SiteRoles { get; private set; }
+        public IUserSiteRoleRepository UserSiteRole { get; private set; }
 
         public void Save()
         {

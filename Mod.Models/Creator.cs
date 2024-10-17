@@ -20,6 +20,7 @@ namespace Mod.Models
         public string Status { get; set; }
         public string? AboutMe { get; set; }
         public string? MCID { get; set; }
+        public string? SiteRoles { get; set; }
 
     }
 }

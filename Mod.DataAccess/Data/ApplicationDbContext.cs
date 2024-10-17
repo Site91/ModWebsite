@@ -12,6 +12,7 @@ namespace Mod.DataAccess
         }
         public DbSet<Creator> ApplicationUsers { get; set; }
         public DbSet<AuthorizedSites> AuthorizedSites { get; set; }
-
+        public DbSet<SiteRoles> SiteRoles { get; set; }
+        public DbSet<UserSiteRole> UserSiteRole { get; set; }
     }
 }

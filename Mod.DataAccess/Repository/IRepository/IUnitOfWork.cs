@@ -14,6 +14,8 @@ namespace Mod.DataAccess.Repository.IRepository
         //ICompanyRepository Company { get; }
         ICreatorRepository User { get; }
         IAuthorizedSitesRepository AuthorizedSites { get; }
+        ISiteRolesRepository SiteRoles { get; }
+        IUserSiteRoleRepository UserSiteRole { get; }
 
         void Save();
     }
