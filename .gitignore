@@ -4,8 +4,8 @@
 ## Get latest from https://github.com/github/gitignore/blob/main/VisualStudio.gitignore
 
 #purge appSettings.jsons
-*.appsettings.json
-*.appsettings.Development.json
+*/appsettings.json
+*/appsettings.Development.json
 
 # User-specific files
 *.rsuser
